@@ -1,0 +1,18 @@
+{
+  "name": "주디타로 — AI Tarot Reading",
+  "short_name": "주디타로",
+  "description": "78장 라이더-웨이트-스미스 타로카드로 AI가 읽어주는 나만의 타로 리딩",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080510",
+  "theme_color": "#7b3fc4",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%23120a24'/><text x='256' y='380' font-size='360' text-anchor='middle' fill='%23d4b8ff'>✦</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
