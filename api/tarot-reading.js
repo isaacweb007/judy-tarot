@@ -78,53 +78,52 @@ export default async function handler(req) {
   }
 
   if (wantStream) {
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
     const enc = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        // Send an initial keep-alive comment immediately so clients establish the stream
+        // and mobile carrier proxies don't drop the connection while waiting for first byte.
+        controller.enqueue(enc.encode(': ready\n\n'));
 
-    // Flush an initial keep-alive comment so the client establishes the stream immediately.
-    // Without this, slow mobile networks can drop the connection while waiting for first byte.
-    await writer.write(enc.encode(': ready\n\n'));
-
-    (async () => {
-      const reader = upstream.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      let lastHeartbeat = Date.now();
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop();
-          for (const line of lines) {
-            const ln = line.trim();
-            if (!ln.startsWith('data:')) continue;
-            const data = ln.slice(5).trim();
-            if (!data || data === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(data);
-              const t = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (t) {
-                await writer.write(enc.encode('data: ' + JSON.stringify({ t }) + '\n\n'));
-                lastHeartbeat = Date.now();
-              }
-            } catch {}
+        const reader = upstream.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        let lastFlush = Date.now();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+              const ln = line.trim();
+              if (!ln.startsWith('data:')) continue;
+              const data = ln.slice(5).trim();
+              if (!data || data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                const t = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (t) {
+                  controller.enqueue(enc.encode('data: ' + JSON.stringify({ t }) + '\n\n'));
+                  lastFlush = Date.now();
+                }
+              } catch {}
+            }
+            // Heartbeat comment every 5s of silence keeps mobile connections alive
+            if (Date.now() - lastFlush > 5000) {
+              controller.enqueue(enc.encode(': hb\n\n'));
+              lastFlush = Date.now();
+            }
           }
-          // Send heartbeat comment every 5s of silence to keep mobile connections alive
-          if (Date.now() - lastHeartbeat > 5000) {
-            await writer.write(enc.encode(': hb\n\n'));
-            lastHeartbeat = Date.now();
-          }
+          controller.enqueue(enc.encode('data: [DONE]\n\n'));
+        } catch (e) {
+          controller.enqueue(enc.encode('data: ' + JSON.stringify({ error: e.message || 'stream error' }) + '\n\n'));
+        } finally {
+          controller.close();
         }
-        await writer.write(enc.encode('data: [DONE]\n\n'));
-      } catch (e) {
-        await writer.write(enc.encode('data: ' + JSON.stringify({ error: e.message }) + '\n\n'));
-      } finally {
-        await writer.close();
-      }
-    })();
+      },
+    });
 
     return new Response(readable, {
       status: 200,
