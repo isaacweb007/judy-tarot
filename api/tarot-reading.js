@@ -82,10 +82,15 @@ export default async function handler(req) {
     const writer = writable.getWriter();
     const enc = new TextEncoder();
 
+    // Flush an initial keep-alive comment so the client establishes the stream immediately.
+    // Without this, slow mobile networks can drop the connection while waiting for first byte.
+    await writer.write(enc.encode(': ready\n\n'));
+
     (async () => {
       const reader = upstream.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
+      let lastHeartbeat = Date.now();
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -101,8 +106,16 @@ export default async function handler(req) {
             try {
               const parsed = JSON.parse(data);
               const t = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (t) await writer.write(enc.encode('data: ' + JSON.stringify({ t }) + '\n\n'));
+              if (t) {
+                await writer.write(enc.encode('data: ' + JSON.stringify({ t }) + '\n\n'));
+                lastHeartbeat = Date.now();
+              }
             } catch {}
+          }
+          // Send heartbeat comment every 5s of silence to keep mobile connections alive
+          if (Date.now() - lastHeartbeat > 5000) {
+            await writer.write(enc.encode(': hb\n\n'));
+            lastHeartbeat = Date.now();
           }
         }
         await writer.write(enc.encode('data: [DONE]\n\n'));
@@ -117,9 +130,10 @@ export default async function handler(req) {
       status: 200,
       headers: {
         ...CORS,
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
         'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive',
       },
     });
   }
