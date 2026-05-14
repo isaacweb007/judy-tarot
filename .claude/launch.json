@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vercel-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "vercel@latest", "dev", "--listen", "3000"],
+      "port": 3000
+    },
+    {
+      "name": "static-python",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765"],
+      "port": 8765
+    }
+  ]
+}
