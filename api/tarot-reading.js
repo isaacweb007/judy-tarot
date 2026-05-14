@@ -1,6 +1,8 @@
 export const config = { runtime: 'edge' };
 
-const MODEL = 'gemini-2.5-flash';
+// gemini-2.5-flash-lite: free tier RPD 1000 (vs gemini-2.5-flash RPD 20)
+// Override via GEMINI_MODEL env var if needed
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60_000;
