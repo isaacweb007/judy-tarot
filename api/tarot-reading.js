@@ -1,11 +1,10 @@
 export const config = { runtime: 'edge' };
 
-// Groq hosts Gemma + Llama models with a generous free tier (~14,400 req/day).
-// Default to Gemma; override via GROQ_MODEL env var.
-//   gemma2-9b-it           — Google Gemma 2 9B (good Korean, what the user wanted)
-//   llama-3.3-70b-versatile — stronger Korean, also free
-//   llama-3.1-8b-instant   — fastest, lighter
-const MODEL = process.env.GROQ_MODEL || 'gemma2-9b-it';
+// Groq free tier (~14,400 req/day). Override via GROQ_MODEL env var.
+//   llama-3.3-70b-versatile — strongest Korean quality (default)
+//   llama-3.1-8b-instant    — fastest, lighter
+//   (gemma2-9b-it was decommissioned by Groq in 2025)
+const MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const rateLimitMap = new Map();
